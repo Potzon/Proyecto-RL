@@ -1,64 +1,92 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
 
+[RequireComponent(typeof(Rigidbody))]
 public class PreyAgent : Agent
 {
-
-    private Animator _animator;
-    private string _currentState;
-    private const string RUN = "Run";
-    internal int survivedSteps = 0;
-
+    private Rigidbody rb;
     private NatureEnvController envController;
+    private Animator animator;
+    private string currentState;
+    private const string RUN = "Walk";
 
-    // public bool usePosition = true;
+    [SerializeField] private float surviveReward = 0.01f; // recompensa por cada paso vivo
 
-    public void Start() {
-        _animator = gameObject.GetComponent<Animator>();
-        ChangeAnimationState(RUN);
+    public int survivedSteps = 0; // usado si quieres loguear en NatureEnvController
+
+    public override void Initialize()
+    {
+        rb = GetComponent<Rigidbody>();
         envController = GetComponentInParent<NatureEnvController>();
+
+        animator = GetComponent<Animator>();
+        ChangeAnimationState(RUN);
     }
 
-    // public override void CollectObservations(VectorSensor sensor) {
-    //     if (usePosition) {
-    //         sensor.AddObservation(transform.localPosition.x);
-    //         sensor.AddObservation(transform.localPosition.z);
-    //         sensor.AddObservation(transform.rotation.y);
-    //     }
-    // }
+    public override void OnEpisodeBegin()
+    {
+        // Reiniciar la velocidad y posición de la presa
+        rb.linearVelocity = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
 
-    public override void OnActionReceived(ActionBuffers actions) {
-        float speedForward = envController.preyMoveSpeed * Mathf.Clamp(actions.ContinuousActions[0], -1f, 1f);
-        float rotateY = envController.preyRotateSpeed * Mathf.Clamp(actions.ContinuousActions[1], -1f, 1f);
-
-        transform.position += transform.forward * speedForward * Time.deltaTime;
-        transform.Rotate(0f, rotateY, 0f);
-    }
-
-    public override void Heuristic(in ActionBuffers actionsOut) {
-        ActionSegment<float> continuousActions = actionsOut.ContinuousActions;
-        continuousActions[0] = Input.GetAxisRaw("Vertical");
-        continuousActions[1] = Input.GetAxisRaw("Horizontal");
-    }
-
-    private void ChangeAnimationState(string newState) {
-        if (newState == _currentState) {
-            return;
+        // Coloca la presa en un sitio aleatorio dentro del área del EnvController
+        if (envController.placeRandomly)
+        {
+            float rndX = Random.Range(-envController.rnd_x_width / 2, envController.rnd_x_width / 2);
+            float rndZ = Random.Range(-envController.rnd_z_width / 2, envController.rnd_z_width / 2);
+            transform.localPosition = new Vector3(rndX, 0f, rndZ);
+            transform.localRotation = Quaternion.Euler(0f, Random.Range(envController.rotMin, envController.rotMax), 0f);
         }
-
-        _animator.Play(newState);
-        _currentState = newState;
     }
 
-    private bool IsAnimationPlaying(Animator animator, string stateName) {
-        if (animator.GetCurrentAnimatorStateInfo(0).IsName(stateName) && animator.GetCurrentAnimatorStateInfo(0).normalizedTime < 1.0f) {
-            return true;
+    // 👇 Si usas RayPerception, aquí no necesitas meter posiciones del predador.
+    // Solo puedes añadir tu propia info adicional si quieres (ej: velocidad).
+    public override void CollectObservations(VectorSensor sensor)
+    {
+        sensor.AddObservation(rb.linearVelocity.x);
+        sensor.AddObservation(rb.linearVelocity.z);
+    }
+
+    public override void OnActionReceived(ActionBuffers actions)
+    {
+        float moveForward = Mathf.Clamp(actions.ContinuousActions[0], -1f, 1f);
+        float rotate = Mathf.Clamp(actions.ContinuousActions[1], -1f, 1f);
+
+        Vector3 forwardMove = transform.forward * (moveForward * envController.preyMoveSpeed * Time.fixedDeltaTime);
+        rb.MovePosition(rb.position + forwardMove);
+
+        Quaternion turn = Quaternion.Euler(0f, rotate * envController.preyRotateSpeed, 0f);
+        rb.MoveRotation(rb.rotation * turn);
+
+        // Recompensa por sobrevivir
+        AddReward(surviveReward);
+        survivedSteps++;
+    }
+
+    public override void Heuristic(in ActionBuffers actionsOut)
+    {
+        var continuousActions = actionsOut.ContinuousActions;
+        continuousActions[0] = Input.GetAxisRaw("Vertical");   // adelante/atrás
+        continuousActions[1] = Input.GetAxisRaw("Horizontal"); // girar
+    }
+
+    private void ChangeAnimationState(string newState)
+    {
+        if (animator != null && newState != currentState)
+        {
+            animator.Play(newState);
+            currentState = newState;
         }
-        return false;
     }
 
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Predator"))
+        {
+            // Avisamos al controlador de que esta presa fue cazada
+            envController.PredatorPreyCollision(this, other.GetComponent<Agent>());
+        }
+    }
 }

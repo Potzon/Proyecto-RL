@@ -1,73 +1,84 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
 
+[RequireComponent(typeof(Rigidbody))]
 public class PredatorAgent : Agent
 {
-
-    private Animator _animator;
-    private string _currentState;
-    private const string RUN_FORWARD = "RunForward";
-    private const string RUN_BACKWARD = "RunBack";
-    private const string WALK_FORWARD = "Walk Forward";
-    private const string WALK_BACKWARD = "Walk Backward";
-
+    private Rigidbody rb;
     private NatureEnvController envController;
+    private Animator animator;
+    private string currentState;
 
-    // public bool usePosition = true;
+    private const string RUN = "Tiger_001_run"; // ajusta al nombre exacto de tu animación
 
-    public void Start() {
-        _animator = GetComponent<Animator>();
-        ChangeAnimationState(RUN_FORWARD);
+    public override void Initialize()
+    {
+        rb = GetComponent<Rigidbody>();
         envController = GetComponentInParent<NatureEnvController>();
+
+        animator = GetComponent<Animator>();
+        ChangeAnimationState(RUN);
     }
 
-    public override void OnActionReceived(ActionBuffers actions) {
-        float speedForward = envController.predatorMoveSpeed * Mathf.Clamp(actions.ContinuousActions[0], -1f, 1f);
-        float rotateY = envController.predatorRotateSpeed * Mathf.Clamp(actions.ContinuousActions[1], -1f, 1f);
+    public override void OnEpisodeBegin()
+    {
+        // Reinicia la velocidad y posición del depredador
+        rb.linearVelocity = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
 
-        transform.position += transform.forward * speedForward * Time.deltaTime;
-        transform.Rotate(0f, rotateY, 0f);
+        if (envController.placeRandomly)
+        {
+            float rndX = Random.Range(-envController.rnd_x_width / 2, envController.rnd_x_width / 2);
+            float rndZ = Random.Range(-envController.rnd_z_width / 2, envController.rnd_z_width / 2);
+            transform.localPosition = new Vector3(rndX, 0f, rndZ);
+            transform.localRotation = Quaternion.Euler(0f, Random.Range(envController.rotMin, envController.rotMax), 0f);
+        }
     }
 
-    // public override void CollectObservations(VectorSensor sensor) {
-    //     if (usePosition) {
-    //         sensor.AddObservation(transform.localPosition.x);
-    //         sensor.AddObservation(transform.localPosition.z);
-    //         sensor.AddObservation(transform.rotation.y);
-    //     }
-    // }
-
-    public override void Heuristic(in ActionBuffers actionsOut) {
-        ActionSegment<float> continuousActions = actionsOut.ContinuousActions;
-        continuousActions[0] = Input.GetAxisRaw("Vertical");
-        continuousActions[1] = Input.GetAxisRaw("Horizontal");
+    public override void CollectObservations(VectorSensor sensor)
+    {
+        // Con RayPerception el depredador ya "ve" presas y obstáculos
+        // Aquí añadimos solo info adicional si quieres (ej: velocidad propia)
+        sensor.AddObservation(rb.linearVelocity.x);
+        sensor.AddObservation(rb.linearVelocity.z);
     }
 
-    private void OnTriggerEnter(Collider other) {
-        if (other.gameObject.CompareTag("Prey")) {
-            Agent preyAgent = other.gameObject.GetComponent<Agent>();
+    public override void OnActionReceived(ActionBuffers actions)
+    {
+        float moveForward = Mathf.Clamp(actions.ContinuousActions[0], -1f, 1f);
+        float rotate = Mathf.Clamp(actions.ContinuousActions[1], -1f, 1f);
+
+        Vector3 forwardMove = transform.forward * (moveForward * envController.predatorMoveSpeed * Time.fixedDeltaTime);
+        rb.MovePosition(rb.position + forwardMove);
+
+        Quaternion turn = Quaternion.Euler(0f, rotate * envController.predatorRotateSpeed, 0f);
+        rb.MoveRotation(rb.rotation * turn);
+    }
+
+    public override void Heuristic(in ActionBuffers actionsOut)
+    {
+        var continuousActions = actionsOut.ContinuousActions;
+        continuousActions[0] = Input.GetAxisRaw("Vertical");   // adelante/atrás
+        continuousActions[1] = Input.GetAxisRaw("Horizontal"); // girar
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Prey"))
+        {
+            Agent preyAgent = other.GetComponent<Agent>();
             envController.PredatorPreyCollision(preyAgent, this);
         }
     }
 
-    private void ChangeAnimationState(string newState) {
-        if (newState == _currentState) {
-            return;
+    private void ChangeAnimationState(string newState)
+    {
+        if (animator != null && newState != currentState)
+        {
+            animator.Play(newState);
+            currentState = newState;
         }
-
-        _animator.Play(newState);
-        _currentState = newState;
     }
-
-    private bool IsAnimationPlaying(Animator animator, string stateName) {
-        if (animator.GetCurrentAnimatorStateInfo(0).IsName(stateName) && animator.GetCurrentAnimatorStateInfo(0).normalizedTime < 1.0f) {
-            return true;
-        }
-        return false;
-    }
-
 }
