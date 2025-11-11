@@ -9,7 +9,8 @@ public class WormAgent : Agent
 {
     const float m_MaxWalkingSpeed = 10; //The max walking speed
 
-    [Header("Target Prefabs")] public Transform TargetPrefab; //Target prefab to use in Dynamic envs
+    [Header("Target Prefabs")] 
+    public Transform target; // Humano
     private Transform m_Target; //Target the agent will walk towards during training.
 
     [Header("Body Parts")] public Transform bodySegment0;
@@ -29,7 +30,7 @@ public class WormAgent : Agent
 
     public override void Initialize()
     {
-        SpawnTarget(TargetPrefab, transform.position); //spawn target
+        m_Target = target; // Usa el humano
 
         m_StartingPos = bodySegment0.position;
         m_OrientationCube = GetComponentInChildren<OrientationCubeController>();
@@ -51,10 +52,7 @@ public class WormAgent : Agent
     /// </summary>
     /// <param name="prefab"></param>
     /// <param name="pos"></param>
-    void SpawnTarget(Transform prefab, Vector3 pos)
-    {
-        m_Target = Instantiate(prefab, pos, Quaternion.identity, transform.parent);
-    }
+   
 
     /// <summary>
     /// Loop over body parts and reset them to initial conditions.

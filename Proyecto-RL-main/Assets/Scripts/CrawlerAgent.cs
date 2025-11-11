@@ -35,8 +35,8 @@ public class CrawlerAgent : Agent
 
     //The direction an agent will walk during training.
     [Header("Target To Walk Towards")]
-    public Transform TargetPrefab; //Target prefab to use in Dynamic envs
-    private Transform m_Target; //Target the agent will walk towards during training.
+    public Transform target; // el humano u otro objeto a seguir
+    private Transform m_Target;
 
     [Header("Body Parts")][Space(10)] public Transform body;
     public Transform leg0Upper;
@@ -69,7 +69,7 @@ public class CrawlerAgent : Agent
 
     public override void Initialize()
     {
-        SpawnTarget(TargetPrefab, transform.position); //spawn target
+        m_Target = target; // Usa el objetivo existente
 
         m_OrientationCube = GetComponentInChildren<OrientationCubeController>();
         m_DirectionIndicator = GetComponentInChildren<DirectionIndicator>();
@@ -92,10 +92,6 @@ public class CrawlerAgent : Agent
     /// </summary>
     /// <param name="prefab"></param>
     /// <param name="pos"></param>
-    void SpawnTarget(Transform prefab, Vector3 pos)
-    {
-        m_Target = Instantiate(prefab, pos, Quaternion.identity, transform.parent);
-    }
 
     /// <summary>
     /// Loop over body parts and reset them to initial conditions.
