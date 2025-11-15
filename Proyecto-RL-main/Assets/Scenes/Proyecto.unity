@@ -357,6 +357,22 @@ PrefabInstance:
       propertyPath: target
       value: 
       objectReference: {fileID: 0}
+    - target: {fileID: 2967544337844992033, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
+      propertyPath: m_Model
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 2967544337844992033, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
+      propertyPath: m_BehaviorType
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2967544337844992033, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
+      propertyPath: m_BrainParameters.VectorObservationSize
+      value: 59
+      objectReference: {fileID: 0}
+    - target: {fileID: 2967544337844992042, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
+      propertyPath: m_TagString
+      value: Pray
+      objectReference: {fileID: 0}
     - target: {fileID: 2967544338251669790, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
       propertyPath: m_LocalRotation.w
       value: 0
@@ -393,10 +409,34 @@ PrefabInstance:
       propertyPath: m_Name
       value: eyeR
       objectReference: {fileID: 0}
+    - target: {fileID: 3546373701170701130, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
+      propertyPath: TeamId
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3546373701170701130, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
+      propertyPath: m_Model
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 3546373701170701130, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
+      propertyPath: m_BehaviorType
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3546373701170701130, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
+      propertyPath: m_BrainParameters.VectorObservationSize
+      value: 29
+      objectReference: {fileID: 0}
     - target: {fileID: 3546373701170701131, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
       propertyPath: target
       value: 
       objectReference: {fileID: 1604235068}
+    - target: {fileID: 3546373701170701143, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
+      propertyPath: m_Name
+      value: Crawler
+      objectReference: {fileID: 0}
+    - target: {fileID: 3546373701170701143, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
+      propertyPath: m_TagString
+      value: Predator
+      objectReference: {fileID: 0}
     - target: {fileID: 6081882046256134953, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
       propertyPath: m_LocalPosition.x
       value: -0.56557
@@ -479,7 +519,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Sensors.RayPerceptionSensorComponent3D
   m_SensorName: RayPerceptionSensor
-  m_DetectableTags: []
+  m_DetectableTags:
+  - Pray
   m_RaysPerDirection: 5
   m_MaxRayDegrees: 35
   m_SphereCastRadius: 0
@@ -507,7 +548,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Sensors.RayPerceptionSensorComponent3D
   m_SensorName: RayPerceptionSensor
-  m_DetectableTags: []
+  m_DetectableTags:
+  - Predator
   m_RaysPerDirection: 9
   m_MaxRayDegrees: 102
   m_SphereCastRadius: 0
