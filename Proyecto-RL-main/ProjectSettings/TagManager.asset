@@ -8,6 +8,12 @@ TagManager:
   - Wall
   - Obstacle
   - Pray
+  - ground
+  - agent
+  - pyramid
+  - wall
+  - switchOff
+  - block
   layers:
   - Default
   - TransparentFX

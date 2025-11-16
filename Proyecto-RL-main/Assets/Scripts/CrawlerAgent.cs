@@ -268,10 +268,14 @@ public class CrawlerAgent : Agent
     /// <summary>
     /// Agent touched the target
     /// </summary>
-    public void TouchedTarget()
-    {
-        AddReward(1f);
-    }
+    void OnCollisionEnter(Collision collision)
+        {
+            if (collision.gameObject.CompareTag("Pray"))
+            {
+                AddReward(15f);
+                EndEpisode();
+            }
+        }
     
     public override void Heuristic(in ActionBuffers actionsOut)
     {

@@ -9,6 +9,7 @@ public class WormAgent : Agent
 {
     const float m_MaxWalkingSpeed = 10; //The max walking speed
 
+
     [Header("Body Parts")] public Transform bodySegment0;
     public Transform bodySegment1;
     public Transform bodySegment2;
@@ -179,6 +180,16 @@ public class WormAgent : Agent
         //This reward will approach 1 if it matches perfectly and approach zero as it deviates
         return Mathf.Pow(1 - Mathf.Pow(velDeltaMagnitude / m_MaxWalkingSpeed, 2), 2);
     }
+
+    void OnCollisionEnter(Collision collision)
+        {
+            if (collision.gameObject.CompareTag("Predator"))
+            {
+                AddReward(-15f);
+                EndEpisode();
+            }
+        }
+
 
     /// <summary>
     /// Update OrientationCube and DirectionIndicator

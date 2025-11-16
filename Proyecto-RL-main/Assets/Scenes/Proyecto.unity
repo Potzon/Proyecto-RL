@@ -142,7 +142,7 @@ MonoBehaviour:
   m_RaysPerDirection: 5
   m_MaxRayDegrees: 35
   m_SphereCastRadius: 0
-  m_RayLength: 12
+  m_RayLength: 25
   m_RayLayerMask:
     serializedVersion: 2
     m_Bits: 4294967291
@@ -176,7 +176,7 @@ MonoBehaviour:
   m_RaysPerDirection: 9
   m_MaxRayDegrees: 102
   m_SphereCastRadius: 0
-  m_RayLength: 25
+  m_RayLength: 35
   m_RayLayerMask:
     serializedVersion: 2
     m_Bits: 4294967291
@@ -389,6 +389,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 776889497778158202, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
+      propertyPath: m_TagString
+      value: Wall
+      objectReference: {fileID: 0}
     - target: {fileID: 1014787771216329512, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
       propertyPath: m_Name
       value: TagEnvV2
@@ -425,10 +429,14 @@ PrefabInstance:
       propertyPath: target
       value: 
       objectReference: {fileID: 0}
+    - target: {fileID: 2967544337844992032, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
+      propertyPath: raySensor
+      value: 
+      objectReference: {fileID: 566807117}
     - target: {fileID: 2967544337844992033, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
       propertyPath: m_Model
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 5022602860645237092, guid: d820e5ccfe08cee4fa070548dbbb1bed, type: 3}
     - target: {fileID: 2967544337844992033, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
       propertyPath: m_BehaviorType
       value: 0
@@ -488,7 +496,7 @@ PrefabInstance:
     - target: {fileID: 3546373701170701130, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
       propertyPath: m_Model
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 5022602860645237092, guid: ec0acd0cd711c4a49941de540e461e36, type: 3}
     - target: {fileID: 3546373701170701130, guid: 8349b10948e791f4e8e1dc3a55186807, type: 3}
       propertyPath: m_BehaviorType
       value: 0

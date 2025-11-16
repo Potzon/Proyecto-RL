@@ -38,7 +38,7 @@ behaviors:
     init_path: null
     keep_checkpoints: 5
     even_checkpoints: false
-    max_steps: 500000
+    max_steps: 100000000
     time_horizon: 64
     summary_freq: 1000
     threaded: false
@@ -82,7 +82,7 @@ behaviors:
     init_path: null
     keep_checkpoints: 5
     even_checkpoints: false
-    max_steps: 500000
+    max_steps: 100000000
     time_horizon: 64
     summary_freq: 1000
     threaded: false
@@ -113,8 +113,8 @@ checkpoint_settings:
   run_id: RLEnv2
   initialize_from: null
   load_model: false
-  resume: false
-  force: true
+  resume: true
+  force: false
   train_model: false
   inference: false
   results_dir: results
