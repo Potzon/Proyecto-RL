@@ -29,7 +29,7 @@ public class WormAgent : Agent
 
     public override void Initialize()
     {
-        SpawnTarget(TargetPrefab, transform.position); //spawn target
+        m_Target = TargetPrefab;
 
         m_StartingPos = bodySegment0.position;
         m_OrientationCube = GetComponentInChildren<OrientationCubeController>();
@@ -131,6 +131,7 @@ public class WormAgent : Agent
     public void TouchedTarget()
     {
         AddReward(1f);
+        EndEpisode();
     }
 
     public override void OnActionReceived(ActionBuffers actionBuffers)

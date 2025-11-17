@@ -69,7 +69,7 @@ public class CrawlerAgent : Agent
 
     public override void Initialize()
     {
-        SpawnTarget(TargetPrefab, transform.position); //spawn target
+        m_Target = TargetPrefab;
 
         m_OrientationCube = GetComponentInChildren<OrientationCubeController>();
         m_DirectionIndicator = GetComponentInChildren<DirectionIndicator>();
@@ -85,16 +85,6 @@ public class CrawlerAgent : Agent
         m_JdController.SetupBodyPart(leg2Lower);
         m_JdController.SetupBodyPart(leg3Upper);
         m_JdController.SetupBodyPart(leg3Lower);
-    }
-
-    /// <summary>
-    /// Spawns a target prefab at pos
-    /// </summary>
-    /// <param name="prefab"></param>
-    /// <param name="pos"></param>
-    void SpawnTarget(Transform prefab, Vector3 pos)
-    {
-        m_Target = Instantiate(prefab, pos, Quaternion.identity, transform.parent);
     }
 
     /// <summary>
@@ -286,5 +276,6 @@ public class CrawlerAgent : Agent
     public void TouchedTarget()
     {
         AddReward(1f);
+        EndEpisode();
     }
 }
