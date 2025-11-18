@@ -277,22 +277,5 @@ public class CrawlerAgent : Agent
         //This reward will approach 1 if it matches perfectly and approach zero as it deviates
         return Mathf.Pow(1 - Mathf.Pow(velDeltaMagnitude / TargetWalkingSpeed, 2), 2);
     }
-
-    /// <summary>
-    /// Agent touched the target
-    /// </summary>
-    public void TouchedTarget()
-    {
-        AddReward(1f);
-        EndEpisode();
-    }
-    
-    private void OnCollisionEnter(Collision collision)
-    {
-        // Revisamos si el objeto con el que colisionamos es el target
-        if (collision.transform == m_Target)
-        {
-            TouchedTarget();
-        }
-    }
+ 
 }

@@ -16,6 +16,8 @@ namespace Unity.MLAgentsExamples
         [Header("Ground Check")] public bool agentDoneOnGroundContact; // Whether to reset agent on ground contact.
         public bool penalizeGroundContact; // Whether to penalize on contact.
         public float groundContactPenalty; // Penalty amount (ex: -1).
+
+        public float presaContactReward;
         public bool touchingGround;
         const string k_Ground = "ground"; // Tag of ground object.
 
@@ -34,7 +36,28 @@ namespace Unity.MLAgentsExamples
 
                 if (agentDoneOnGroundContact)
                 {
-                    agent.EndEpisode();
+                   /*  agent.EndEpisode();  */
+                }
+            }
+            if (col.transform.CompareTag("Prey"))
+            {
+                Debug.Log("presa");
+
+                // Recompensa del depredador
+                agent.AddReward(presaContactReward);
+                agent.EndEpisode();
+
+                // Buscar el Agent en el root de la presa
+                Agent preyAgent = col.transform.GetComponentInParent<Agent>();
+
+                if (preyAgent != null)
+                {
+                    preyAgent.AddReward(-presaContactReward);
+                    preyAgent.EndEpisode();
+                }
+                else
+                {
+                    Debug.LogError("No se encontró el Agent en el objeto Prey ni en sus padres.");
                 }
             }
         }
