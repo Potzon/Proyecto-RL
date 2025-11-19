@@ -4,211 +4,149 @@ using Unity.MLAgents.Actuators;
 using Unity.MLAgentsExamples;
 using Unity.MLAgents.Sensors;
 
-[RequireComponent(typeof(JointDriveController))] // Required to set joint forces
+[RequireComponent(typeof(JointDriveController))]
 public class WormAgent : Agent
 {
-    const float m_MaxWalkingSpeed = 10; //The max walking speed
+    const float m_MaxSpeed = 10;
 
-    [Header("Target Prefabs")] public Transform TargetPrefab; //Target prefab to use in Dynamic envs
-    private Transform m_Target; //Target the agent will walk towards during training.
+    [Header("Predator reference")]
+    public Transform predator;   // <<< EL DEPREDADOR
 
-    [Header("Body Parts")] public Transform bodySegment0;
+
+    [Header("Body Parts")]
+    public Transform bodySegment0;
     public Transform bodySegment1;
     public Transform bodySegment2;
     public Transform bodySegment3;
 
-    //This will be used as a stabilized model space reference point for observations
-    //Because ragdolls can move erratically during training, using a stabilized reference transform improves learning
-    OrientationCubeController m_OrientationCube;
+    private Transform m_TargetTemp;
 
-    //The indicator graphic gameobject that points towards the target
-    DirectionIndicator m_DirectionIndicator;
+    OrientationCubeController m_OrientationCube;
     JointDriveController m_JdController;
 
-    private Vector3 m_StartingPos; //starting position of the agent
+    DirectionIndicator m_DirectionIndicator;
+
+    Vector3 startPos;
 
     public override void Initialize()
     {
-        m_Target = TargetPrefab;
+        startPos = bodySegment0.position;
 
-        m_StartingPos = bodySegment0.position;
         m_OrientationCube = GetComponentInChildren<OrientationCubeController>();
-        m_DirectionIndicator = GetComponentInChildren<DirectionIndicator>();
         m_JdController = GetComponent<JointDriveController>();
+        m_DirectionIndicator = GetComponentInChildren<DirectionIndicator>();
 
         UpdateOrientationObjects();
 
-        //Setup each body part
         m_JdController.SetupBodyPart(bodySegment0);
         m_JdController.SetupBodyPart(bodySegment1);
         m_JdController.SetupBodyPart(bodySegment2);
         m_JdController.SetupBodyPart(bodySegment3);
     }
 
-
-    /// <summary>
-    /// Spawns a target prefab at pos
-    /// </summary>
-    /// <param name="prefab"></param>
-    /// <param name="pos"></param>
-    void SpawnTarget(Transform prefab, Vector3 pos)
-    {
-        m_Target = Instantiate(prefab, pos, Quaternion.identity, transform.parent);
-    }
-
-    /// <summary>
-    /// Loop over body parts and reset them to initial conditions.
-    /// </summary>
     public override void OnEpisodeBegin()
     {
-        foreach (var bodyPart in m_JdController.bodyPartsList)
-        {
-            bodyPart.Reset(bodyPart);
-        }
+        foreach (var bp in m_JdController.bodyPartsList)
+            bp.Reset(bp);
 
-        //Random start rotation to help generalize
-        bodySegment0.rotation = Quaternion.Euler(0, Random.Range(0.0f, 360.0f), 0);
-
-        bodySegment0.localPosition = GetRandomPosition();
+        bodySegment0.rotation = Quaternion.Euler(0, Random.Range(0, 360f), 0);
+        bodySegment0.localPosition = GetRandomPos();
 
         UpdateOrientationObjects();
     }
 
-    private Vector3 GetRandomPosition()
-        {
-            return new Vector3(Random.Range(-47f, 29f), 1.15f, Random.Range(-37, 31f));
-            
-        }
-
-    /// <summary>
-    /// Add relevant information on each body part to observations.
-    /// </summary>
-    public void CollectObservationBodyPart(BodyPart bp, VectorSensor sensor)
+    Vector3 GetRandomPos()
     {
-        //GROUND CHECK
-        sensor.AddObservation(bp.groundContact.touchingGround ? 1 : 0); // Whether the bp touching the ground
-
-        //Get velocities in the context of our orientation cube's space
-        //Note: You can get these velocities in world space as well but it may not train as well.
-        sensor.AddObservation(m_OrientationCube.transform.InverseTransformDirection(bp.rb.linearVelocity));
-        sensor.AddObservation(m_OrientationCube.transform.InverseTransformDirection(bp.rb.angularVelocity));
-
-
-        if (bp.rb.transform != bodySegment0)
-        {
-            //Get position relative to hips in the context of our orientation cube's space
-            sensor.AddObservation(
-                m_OrientationCube.transform.InverseTransformDirection(bp.rb.position - bodySegment0.position));
-            sensor.AddObservation(bp.rb.transform.localRotation);
-        }
-
-        if (bp.joint)
-            sensor.AddObservation(bp.currentStrength / m_JdController.maxJointForceLimit);
+        return new Vector3(Random.Range(-45f, 45f), 1.15f, Random.Range(-45, 45f));
     }
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        RaycastHit hit;
-        float maxDist = 10;
-        if (Physics.Raycast(bodySegment0.position, Vector3.down, out hit, maxDist))
-        {
-            sensor.AddObservation(hit.distance / maxDist);
-        }
+        // Distancia al suelo
+        if (Physics.Raycast(bodySegment0.position, Vector3.down, out var hit, 10))
+            sensor.AddObservation(hit.distance / 10f);
         else
             sensor.AddObservation(1);
 
-        var cubeForward = m_OrientationCube.transform.forward;
-        var velGoal = cubeForward * m_MaxWalkingSpeed;
-        sensor.AddObservation(m_OrientationCube.transform.InverseTransformDirection(velGoal));
-        sensor.AddObservation(Quaternion.Angle(m_OrientationCube.transform.rotation,
-                                  m_JdController.bodyPartsDict[bodySegment0].rb.rotation) / 180);
-        sensor.AddObservation(Quaternion.FromToRotation(bodySegment0.forward, cubeForward));
+        // Vector de escape (worm - predator)
+        Vector3 escapeVector = bodySegment0.position - predator.position;
+        sensor.AddObservation(m_OrientationCube.transform.InverseTransformDirection(escapeVector.normalized));
+        sensor.AddObservation(escapeVector.magnitude / 50f);  // distancia normalizada
 
-        //Add pos of target relative to orientation cube
-        sensor.AddObservation(m_OrientationCube.transform.InverseTransformPoint(m_Target.transform.position));
+        // Velocidad del worm  
+        sensor.AddObservation(
+            m_OrientationCube.transform.InverseTransformDirection(
+                m_JdController.bodyPartsDict[bodySegment0].rb.linearVelocity
+            )
+        );
 
-        foreach (var bodyPart in m_JdController.bodyPartsList)
-        {
-            CollectObservationBodyPart(bodyPart, sensor);
-        }
+        // Observaciones de cada parte
+        foreach (var bp in m_JdController.bodyPartsList)
+            CollectObservationBodyPart(bp, sensor);
     }
 
-
-
-
-    public override void OnActionReceived(ActionBuffers actionBuffers)
+    public void CollectObservationBodyPart(BodyPart bp, VectorSensor sensor)
     {
-        // The dictionary with all the body parts in it are in the jdController
-        var bpDict = m_JdController.bodyPartsDict;
+        sensor.AddObservation(bp.groundContact.touchingGround ? 1 : 0);
+        sensor.AddObservation(m_OrientationCube.transform.InverseTransformDirection(bp.rb.linearVelocity));
+        sensor.AddObservation(m_OrientationCube.transform.InverseTransformDirection(bp.rb.angularVelocity));
 
-        var i = -1;
-        var continuousActions = actionBuffers.ContinuousActions;
-        // Pick a new target joint rotation
-        bpDict[bodySegment0].SetJointTargetRotation(continuousActions[++i], continuousActions[++i], 0);
-        bpDict[bodySegment1].SetJointTargetRotation(continuousActions[++i], continuousActions[++i], 0);
-        bpDict[bodySegment2].SetJointTargetRotation(continuousActions[++i], continuousActions[++i], 0);
+        if (bp.joint != null)
+            sensor.AddObservation(bp.currentStrength / m_JdController.maxJointForceLimit);
+    }
 
-        // Update joint strength
-        bpDict[bodySegment0].SetJointStrength(continuousActions[++i]);
-        bpDict[bodySegment1].SetJointStrength(continuousActions[++i]);
-        bpDict[bodySegment2].SetJointStrength(continuousActions[++i]);
+    public override void OnActionReceived(ActionBuffers actions)
+    {
+        var bp = m_JdController.bodyPartsDict;
 
-        //Reset if Worm fell through floor;
-        if (bodySegment0.position.y < m_StartingPos.y - 2)
-        {
+        int i = -1;
+        var a = actions.ContinuousActions;
+
+        bp[bodySegment0].SetJointTargetRotation(a[++i], a[++i], 0);
+        bp[bodySegment1].SetJointTargetRotation(a[++i], a[++i], 0);
+        bp[bodySegment2].SetJointTargetRotation(a[++i], a[++i], 0);
+
+        bp[bodySegment0].SetJointStrength(a[++i]);
+        bp[bodySegment1].SetJointStrength(a[++i]);
+        bp[bodySegment2].SetJointStrength(a[++i]);
+
+        if (bodySegment0.position.y < startPos.y - 2)
             EndEpisode();
-        }
     }
 
     void FixedUpdate()
     {
         UpdateOrientationObjects();
 
-        var velReward =
-            GetMatchingVelocityReward(m_OrientationCube.transform.forward * m_MaxWalkingSpeed,
-                m_JdController.bodyPartsDict[bodySegment0].rb.linearVelocity);
+        float dist = Vector3.Distance(bodySegment0.position, predator.position);
 
-        //Angle of the rotation delta between cube and body.
-        //This will range from (0, 180)
-        var rotAngle = Quaternion.Angle(m_OrientationCube.transform.rotation,
-            m_JdController.bodyPartsDict[bodySegment0].rb.rotation);
+        // Recompensa por alejarse
+        AddReward(0.001f * dist);
 
-        //The reward for facing the target
-        var facingRew = 0f;
-        //If we are within 30 degrees of facing the target
-        if (rotAngle < 30)
-        {
-            //Set normalized facingReward
-            //Facing the target perfectly yields a reward of 1
-            facingRew = 1 - (rotAngle / 180);
-        }
-
-        //Add the product of these two rewards
-        AddReward(velReward * facingRew);
+        // Penalización si el depredador está cerca
+        AddReward(-0.003f / dist);
     }
 
-    /// <summary>
-    /// Normalized value of the difference in actual speed vs goal walking speed.
-    /// </summary>
-    public float GetMatchingVelocityReward(Vector3 velocityGoal, Vector3 actualVelocity)
-    {
-        //distance between our actual velocity and goal velocity
-        var velDeltaMagnitude = Mathf.Clamp(Vector3.Distance(actualVelocity, velocityGoal), 0, m_MaxWalkingSpeed);
-
-        //return the value on a declining sigmoid shaped curve that decays from 1 to 0
-        //This reward will approach 1 if it matches perfectly and approach zero as it deviates
-        return Mathf.Pow(1 - Mathf.Pow(velDeltaMagnitude / m_MaxWalkingSpeed, 2), 2);
-    }
-
-    /// <summary>
-    /// Update OrientationCube and DirectionIndicator
-    /// </summary>
     void UpdateOrientationObjects()
     {
-        m_OrientationCube.UpdateOrientation(bodySegment0, m_Target);
         if (m_DirectionIndicator)
         {
             m_DirectionIndicator.MatchOrientation(m_OrientationCube.transform);
         }
+        // dirección de escape = desde predator hacia worm
+        Vector3 escapeDir = (bodySegment0.position - predator.position).normalized;
+
+        Vector3 escapePos = bodySegment0.position + escapeDir;
+        if (m_TargetTemp == null)
+        {
+            m_TargetTemp = new GameObject("EscapeTarget").transform;
+        }
+        m_TargetTemp.position = escapePos;
+        m_OrientationCube.UpdateOrientation(bodySegment0, m_TargetTemp);
+
     }
 }
+
+
+
+

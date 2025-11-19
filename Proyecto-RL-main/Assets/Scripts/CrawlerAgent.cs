@@ -111,7 +111,7 @@ public class CrawlerAgent : Agent
 
     private Vector3 GetRandomPosition()
         {
-            return new Vector3(Random.Range(-47f, 29f), 2.006f, Random.Range(-37, 31f));
+            return new Vector3(Random.Range(-45f, 45f), 2.006f, Random.Range(-45, 45f));
         }
 
     /// <summary>

@@ -89,7 +89,8 @@ behaviors:
     self_play: null
     behavioral_cloning: null
 env_settings:
-  env_path: C:\Users\dekum\OneDrive\Escritorio\Trabajo\Proyecto_RL\build\My project.exe
+  env_path: C:\Users\dekum\OneDrive\Escritorio\Trabajo\Proyecto_RL\builds\build_V1\My
+    project.exe
   env_args: null
   base_port: 5005
   num_envs: 1
@@ -113,8 +114,8 @@ checkpoint_settings:
   run_id: RLEnv2
   initialize_from: null
   load_model: false
-  resume: true
-  force: false
+  resume: false
+  force: true
   train_model: false
   inference: false
   results_dir: results

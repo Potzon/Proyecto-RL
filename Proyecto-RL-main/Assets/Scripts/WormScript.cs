@@ -1,3 +1,5 @@
+/* 
+
 using UnityEngine;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
@@ -5,10 +7,12 @@ using Unity.MLAgentsExamples;
 using Unity.MLAgents.Sensors;
 
 [RequireComponent(typeof(JointDriveController))] // Required to set joint forces
-public class WormScript : Agent
+public class WormAgent : Agent
 {
     const float m_MaxWalkingSpeed = 10; //The max walking speed
 
+    [Header("Target Prefabs")] public Transform TargetPrefab; //Target prefab to use in Dynamic envs
+    private Transform m_Target; //Target the agent will walk towards during training.
 
     [Header("Body Parts")] public Transform bodySegment0;
     public Transform bodySegment1;
@@ -27,6 +31,7 @@ public class WormScript : Agent
 
     public override void Initialize()
     {
+        m_Target = TargetPrefab;
 
         m_StartingPos = bodySegment0.position;
         m_OrientationCube = GetComponentInChildren<OrientationCubeController>();
@@ -48,7 +53,10 @@ public class WormScript : Agent
     /// </summary>
     /// <param name="prefab"></param>
     /// <param name="pos"></param>
-   
+    void SpawnTarget(Transform prefab, Vector3 pos)
+    {
+        m_Target = Instantiate(prefab, pos, Quaternion.identity, transform.parent);
+    }
 
     /// <summary>
     /// Loop over body parts and reset them to initial conditions.
@@ -63,8 +71,16 @@ public class WormScript : Agent
         //Random start rotation to help generalize
         bodySegment0.rotation = Quaternion.Euler(0, Random.Range(0.0f, 360.0f), 0);
 
+        bodySegment0.localPosition = GetRandomPosition();
+
         UpdateOrientationObjects();
     }
+
+    private Vector3 GetRandomPosition()
+        {
+            return new Vector3(Random.Range(-47f, 29f), 1.15f, Random.Range(-37, 31f));
+            
+        }
 
     /// <summary>
     /// Add relevant information on each body part to observations.
@@ -94,31 +110,33 @@ public class WormScript : Agent
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        // Velocidad del cuerpo principal relativa al OrientationCube
-        sensor.AddObservation(
-            m_OrientationCube.transform.InverseTransformDirection(
-                m_JdController.bodyPartsDict[bodySegment0].rb.linearVelocity));
+        RaycastHit hit;
+        float maxDist = 10;
+        if (Physics.Raycast(bodySegment0.position, Vector3.down, out hit, maxDist))
+        {
+            sensor.AddObservation(hit.distance / maxDist);
+        }
+        else
+            sensor.AddObservation(1);
 
-        // Rotación del cuerpo respecto al OrientationCube
-        sensor.AddObservation(
-            Quaternion.FromToRotation(bodySegment0.forward, m_OrientationCube.transform.forward));
+        var cubeForward = m_OrientationCube.transform.forward;
+        var velGoal = cubeForward * m_MaxWalkingSpeed;
+        sensor.AddObservation(m_OrientationCube.transform.InverseTransformDirection(velGoal));
+        sensor.AddObservation(Quaternion.Angle(m_OrientationCube.transform.rotation,
+                                  m_JdController.bodyPartsDict[bodySegment0].rb.rotation) / 180);
+        sensor.AddObservation(Quaternion.FromToRotation(bodySegment0.forward, cubeForward));
 
-        // Observaciones de todas las partes del cuerpo
+        //Add pos of target relative to orientation cube
+        sensor.AddObservation(m_OrientationCube.transform.InverseTransformPoint(m_Target.transform.position));
+
         foreach (var bodyPart in m_JdController.bodyPartsList)
         {
             CollectObservationBodyPart(bodyPart, sensor);
         }
-
-        // Ray Perception Sensor 3D automáticamente añade información de los rayos
     }
 
-    /// <summary>
-    /// Agent touched the target
-    /// </summary>
-    public void TouchedTarget()
-    {
-        AddReward(1f);
-    }
+
+
 
     public override void OnActionReceived(ActionBuffers actionBuffers)
     {
@@ -148,24 +166,27 @@ public class WormScript : Agent
     {
         UpdateOrientationObjects();
 
-        // Recompensa básica por moverse estable
-        var velReward = GetMatchingVelocityReward(
-            m_OrientationCube.transform.forward * m_MaxWalkingSpeed,
-            m_JdController.bodyPartsDict[bodySegment0].rb.linearVelocity);
+        var velReward =
+            GetMatchingVelocityReward(m_OrientationCube.transform.forward * m_MaxWalkingSpeed,
+                m_JdController.bodyPartsDict[bodySegment0].rb.linearVelocity);
 
-        // Recompensa por rotación estable
-        var rotAngle = Quaternion.Angle(
-            m_OrientationCube.transform.rotation,
+        //Angle of the rotation delta between cube and body.
+        //This will range from (0, 180)
+        var rotAngle = Quaternion.Angle(m_OrientationCube.transform.rotation,
             m_JdController.bodyPartsDict[bodySegment0].rb.rotation);
-        var facingRew = 1 - (rotAngle / 180);
 
-        AddReward(velReward * facingRew);
-
-        // Reinicio si cae
-        if (bodySegment0.position.y < m_StartingPos.y - 2)
+        //The reward for facing the target
+        var facingRew = 0f;
+        //If we are within 30 degrees of facing the target
+        if (rotAngle < 30)
         {
-            EndEpisode();
+            //Set normalized facingReward
+            //Facing the target perfectly yields a reward of 1
+            facingRew = 1 - (rotAngle / 180);
         }
+
+        //Add the product of these two rewards
+        AddReward(velReward * facingRew);
     }
 
     /// <summary>
@@ -181,37 +202,15 @@ public class WormScript : Agent
         return Mathf.Pow(1 - Mathf.Pow(velDeltaMagnitude / m_MaxWalkingSpeed, 2), 2);
     }
 
-    void OnCollisionEnter(Collision collision)
-        {
-            if (collision.gameObject.CompareTag("Predator"))
-            {
-                AddReward(-15f);
-                EndEpisode();
-            }
-        }
-
-
     /// <summary>
     /// Update OrientationCube and DirectionIndicator
     /// </summary>
     void UpdateOrientationObjects()
     {
-        // Solo actualiza la posición y forward del OrientationCube para referencia
-        m_OrientationCube.transform.position = bodySegment0.position;
-        // El forward puede ser simplemente hacia la dirección actual de movimiento
-        m_OrientationCube.transform.forward = bodySegment0.forward;
-
+        m_OrientationCube.UpdateOrientation(bodySegment0, m_Target);
         if (m_DirectionIndicator)
         {
             m_DirectionIndicator.MatchOrientation(m_OrientationCube.transform);
         }
     }
-
-    public override void Heuristic(in ActionBuffers actionsOut)
-    {
-        var continuousActions = actionsOut.ContinuousActions;
-        for (int i = 0; i < continuousActions.Length; i++)
-            continuousActions[i] = 0f; // placeholder
-    }
-
-}
+} */
