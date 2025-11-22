@@ -31,11 +31,13 @@ namespace Unity.MLAgentsExamples
                 touchingGround = true;
                 if (penalizeGroundContact)
                 {
+                    Debug.Log(agent.GetCumulativeReward().ToString("F2"));
                     agent.AddReward(groundContactPenalty);
                 }
 
                 if (agentDoneOnGroundContact)
                 {
+                    Debug.Log(agent.GetCumulativeReward().ToString("F2"));
                     agent.EndEpisode();
                 }
             }
@@ -52,8 +54,8 @@ namespace Unity.MLAgentsExamples
 
                 if (preyAgent != null)
                 {
-                    preyAgent.AddReward(-presaContactReward);
-                    preyAgent.EndEpisode();
+                    /* preyAgent.AddReward(-presaContactReward);
+                    preyAgent.EndEpisode(); */
                 }
                 else
                 {

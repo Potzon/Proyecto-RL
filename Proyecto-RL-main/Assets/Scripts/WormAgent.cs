@@ -49,15 +49,27 @@ public class WormAgent : Agent
         foreach (var bp in m_JdController.bodyPartsList)
             bp.Reset(bp);
 
-        bodySegment0.rotation = Quaternion.Euler(0, Random.Range(0, 360f), 0);
-        bodySegment0.localPosition = GetRandomPos();
+        /* bodySegment0.rotation = Quaternion.Euler(0, Random.Range(0, 360f), 0);
+        bodySegment0.position = GetRandomPos(); */
 
         UpdateOrientationObjects();
     }
 
     Vector3 GetRandomPos()
     {
-        return new Vector3(Random.Range(-45f, 45f), 1.15f, Random.Range(-45, 45f));
+        Vector3 predatorBodyPos = predator.GetComponent<CrawlerAgent>().body.position;
+        Vector3 pos;
+        do
+        {
+            pos = new Vector3(
+                Random.Range(-15f, 15f),
+                1.15f,
+                Random.Range(-15f, 15f)
+            );
+        }
+        while (Vector3.Distance(pos, predatorBodyPos) < 14f);
+
+        return pos;
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -144,6 +156,13 @@ public class WormAgent : Agent
         m_TargetTemp.position = escapePos;
         m_OrientationCube.UpdateOrientation(bodySegment0, m_TargetTemp);
 
+    }
+
+    public override void Heuristic(in ActionBuffers actionsOut)
+    {
+        var continuousActions = actionsOut.ContinuousActions;
+        for (int i = 0; i < continuousActions.Length; i++)
+            continuousActions[i] = 0f; // placeholder
     }
 }
 

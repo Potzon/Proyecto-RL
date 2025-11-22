@@ -38,6 +38,9 @@ public class CrawlerAgent : Agent
     public Transform TargetPrefab; //Target prefab to use in Dynamic envs
     private Transform m_Target; //Target the agent will walk towards during training.
 
+    private float lastDistanceToPrey;
+
+
     [Header("Body Parts")][Space(10)] public Transform body;
     public Transform leg0Upper;
     public Transform leg0Lower;
@@ -98,10 +101,12 @@ public class CrawlerAgent : Agent
             bodyPart.Reset(bodyPart);
         }
 
-        //Random start rotation to help generalize
-        body.rotation = Quaternion.Euler(0, Random.Range(0.0f, 360.0f), 0);
+        lastDistanceToPrey = Vector3.Distance(body.position, m_Target.position);
 
-        body.localPosition = GetRandomPosition();
+        //Random start rotation to help generalize
+        /* body.rotation = Quaternion.Euler(0, Random.Range(0.0f, 360.0f), 0); */
+
+        /* body.position = GetRandomPos(); */
 
         UpdateOrientationObjects();
 
@@ -109,9 +114,20 @@ public class CrawlerAgent : Agent
         TargetWalkingSpeed = Random.Range(0.1f, m_maxWalkingSpeed);
     }
 
-    private Vector3 GetRandomPosition()
+    Vector3 GetRandomPos()
         {
-            return new Vector3(Random.Range(-45f, 45f), 2.006f, Random.Range(-45, 45f));
+            Vector3 preyBodyPos = TargetPrefab.position;
+            Vector3 pos;
+            do
+            { 
+                pos = new Vector3(
+                    Random.Range(-15f, 15f),
+                    2.006f,
+                    Random.Range(-15f, 15f)
+                );
+             }
+            while (Vector3.Distance(pos, preyBodyPos) < 14f); 
+            return pos;
         }
 
     /// <summary>
@@ -133,24 +149,20 @@ public class CrawlerAgent : Agent
     /// </summary>
     public override void CollectObservations(VectorSensor sensor)
     {
-        var cubeForward = m_OrientationCube.transform.forward;
+        // Dirección hacia la presa (normalizada y relativa al agente)
+        Vector3 dirToPrey = (m_Target.position - body.position).normalized;
+        sensor.AddObservation(m_OrientationCube.transform.InverseTransformDirection(dirToPrey));
 
-        //velocity we want to match
-        var velGoal = cubeForward * TargetWalkingSpeed;
-        //ragdoll's avg vel
-        var avgVel = GetAvgVelocity();
+        // Velocidad de la presa (relativa)
+        Rigidbody preyRB = m_Target.GetComponent<Rigidbody>();
+        sensor.AddObservation(m_OrientationCube.transform.InverseTransformDirection(preyRB.linearVelocity));
 
-        //current ragdoll velocity. normalized
-        sensor.AddObservation(Vector3.Distance(velGoal, avgVel));
-        //avg body vel relative to cube
-        sensor.AddObservation(m_OrientationCube.transform.InverseTransformDirection(avgVel));
-        //vel goal relative to cube
-        sensor.AddObservation(m_OrientationCube.transform.InverseTransformDirection(velGoal));
-        //rotation delta
-        sensor.AddObservation(Quaternion.FromToRotation(body.forward, cubeForward));
+        // Distancia a la presa
+        sensor.AddObservation(Vector3.Distance(body.position, m_Target.position));
 
-        //Add pos of target relative to orientation cube
-        sensor.AddObservation(m_OrientationCube.transform.InverseTransformPoint(m_Target.transform.position));
+        // Posicion
+        sensor.AddObservation(m_OrientationCube.transform.InverseTransformPoint(m_Target.position));
+
 
         RaycastHit hit;
         float maxRaycastDist = 10;
@@ -199,37 +211,52 @@ public class CrawlerAgent : Agent
     {
         UpdateOrientationObjects();
 
-        // If enabled the feet will light up green when the foot is grounded.
-        // This is just a visualization and isn't necessary for function
         if (useFootGroundedVisualization)
         {
-            foot0.material = m_JdController.bodyPartsDict[leg0Lower].groundContact.touchingGround
-                ? groundedMaterial
-                : unGroundedMaterial;
-            foot1.material = m_JdController.bodyPartsDict[leg1Lower].groundContact.touchingGround
-                ? groundedMaterial
-                : unGroundedMaterial;
-            foot2.material = m_JdController.bodyPartsDict[leg2Lower].groundContact.touchingGround
-                ? groundedMaterial
-                : unGroundedMaterial;
-            foot3.material = m_JdController.bodyPartsDict[leg3Lower].groundContact.touchingGround
-                ? groundedMaterial
-                : unGroundedMaterial;
+            foot0.material = m_JdController.bodyPartsDict[leg0Lower].groundContact.touchingGround ? groundedMaterial : unGroundedMaterial;
+            foot1.material = m_JdController.bodyPartsDict[leg1Lower].groundContact.touchingGround ? groundedMaterial : unGroundedMaterial;
+            foot2.material = m_JdController.bodyPartsDict[leg2Lower].groundContact.touchingGround ? groundedMaterial : unGroundedMaterial;
+            foot3.material = m_JdController.bodyPartsDict[leg3Lower].groundContact.touchingGround ? groundedMaterial : unGroundedMaterial;
         }
 
-        var cubeForward = m_OrientationCube.transform.forward;
+        AddReward(-0.0005f); // tu penalización suave
 
-        // Set reward for this step according to mixture of the following elements.
-        // a. Match target speed
-        //This reward will approach 1 if it matches perfectly and approach zero as it deviates
-        var matchSpeedReward = GetMatchingVelocityReward(cubeForward * TargetWalkingSpeed, GetAvgVelocity());
+        float currentDist = Vector3.Distance(body.position, m_Target.position);
+        float delta = lastDistanceToPrey - currentDist;
 
-        // b. Rotation alignment with target direction.
-        //This reward will approach 1 if it faces the target direction perfectly and approach zero as it deviates
-        var lookAtTargetReward = (Vector3.Dot(cubeForward, body.forward) + 1) * .5F;
+        if (delta > 0)
+            AddReward(delta * 0.5f);
+        else
+            AddReward(delta * 0.2f);
 
-        AddReward(matchSpeedReward * lookAtTargetReward);
+        lastDistanceToPrey = currentDist;
+
+        Vector3 forward = m_OrientationCube.transform.forward;
+        Vector3 toPrey = (m_Target.position - body.position).normalized;
+        float alignment = Vector3.Dot(forward, toPrey);
+        AddReward(alignment * 0.01f);
+
+        // ======================================
+        // AÑADIDOS IMPORTANTES
+        // ======================================
+
+        // 1) Velocidad hacia la presa
+        float forwardSpeed = Vector3.Dot(GetAvgVelocity(), toPrey);
+        AddReward(forwardSpeed * 0.02f);
+
+        // 2) Penalizar quedarse quieto
+        if (GetAvgVelocity().magnitude < 0.2f)
+            AddReward(-0.01f);
+
+        // 3) Castigo leve por distancia absoluta
+        AddReward(-(currentDist * 0.0005f));
+
+        // 4) Reward por igualar velocidad objetivo
+        Vector3 velGoal = toPrey * TargetWalkingSpeed;
+        float velReward = GetMatchingVelocityReward(velGoal, GetAvgVelocity());
+        AddReward(velReward * 0.05f);
     }
+
 
     /// <summary>
     /// Update OrientationCube and DirectionIndicator
@@ -278,4 +305,11 @@ public class CrawlerAgent : Agent
         return Mathf.Pow(1 - Mathf.Pow(velDeltaMagnitude / TargetWalkingSpeed, 2), 2);
     }
  
+
+     public override void Heuristic(in ActionBuffers actionsOut)
+    {
+        var continuousActions = actionsOut.ContinuousActions;
+        for (int i = 0; i < continuousActions.Length; i++)
+            continuousActions[i] = 0f; // placeholder
+    }
 }
