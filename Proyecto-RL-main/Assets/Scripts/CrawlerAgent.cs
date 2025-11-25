@@ -211,6 +211,7 @@ public class CrawlerAgent : Agent
     {
         UpdateOrientationObjects();
 
+        //Esto es visual
         if (useFootGroundedVisualization)
         {
             foot0.material = m_JdController.bodyPartsDict[leg0Lower].groundContact.touchingGround ? groundedMaterial : unGroundedMaterial;
@@ -219,7 +220,7 @@ public class CrawlerAgent : Agent
             foot3.material = m_JdController.bodyPartsDict[leg3Lower].groundContact.touchingGround ? groundedMaterial : unGroundedMaterial;
         }
 
-        AddReward(-0.0005f); // tu penalización suave
+        AddReward(-0.0005f); // penalización suave
 
         float currentDist = Vector3.Distance(body.position, m_Target.position);
         float delta = lastDistanceToPrey - currentDist;
@@ -235,10 +236,6 @@ public class CrawlerAgent : Agent
         Vector3 toPrey = (m_Target.position - body.position).normalized;
         float alignment = Vector3.Dot(forward, toPrey);
         AddReward(alignment * 0.01f);
-
-        // ======================================
-        // AÑADIDOS IMPORTANTES
-        // ======================================
 
         // 1) Velocidad hacia la presa
         float forwardSpeed = Vector3.Dot(GetAvgVelocity(), toPrey);
